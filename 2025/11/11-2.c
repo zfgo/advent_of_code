@@ -6,31 +6,30 @@
 #define DAC "dac"
 #define FFT "fft"
 #define OUT "out"
-#define YOU "you"
+#define SVR "svr"
+#define N 604
 
 typedef struct node 
 {
     char id[4];
     int n_nbrs;
     struct node **nbrs;
+    int visited;
 } Node;
 
-int dfs(Node *n, int depth)
+long long int calc(Node *src, Node *dest)
 {
-    if (strcmp(n->id, OUT) == 0)
+    //printf("src id: %s; dest id: %s\n", src->id, dest->id);
+    // count number of paths from src to dest
+    if (strcmp(src->id, dest->id) == 0)
         return 1;
 
-    int ans = 0;
-    for (int i = 0; i < n->n_nbrs; ++i)
+    long long int ans = 0;
+    for (int i = 0; i < src->n_nbrs; ++ i)
     {
-        ans += dfs(n->nbrs[i], depth+1);
+        ans += calc(src->nbrs[i], dest);
     }
-    return ans;
-}
 
-int calc(Node *nodes, int n_nodes)
-{
-    int ans = 0;
     return ans;
 }
 
@@ -55,7 +54,7 @@ int main(int argc, char *argv[])
     }
     n_lns = i;
     int n_nodes = i;
-    int you_id;
+    int svr_id, dac_id, fft_id;
     Node nodes[n_nodes + 1];
 
     for (i = 0; i < n_nodes; ++i)
@@ -66,9 +65,14 @@ int main(int argc, char *argv[])
 
         nodes[i].n_nbrs = ((strlen(lines[i]) - 1) / 4) - 1;
         nodes[i].nbrs = (Node **)malloc(sizeof(Node *) * nodes[i].n_nbrs);
+        nodes[i].visited = 0;
         //printf("%d\n", nodes[i].n_nbrs);
-        if (strcmp(nodes[i].id, YOU) == 0)
-            you_id = i;
+        if (strcmp(nodes[i].id, SVR) == 0)
+            svr_id = i;
+        if (strcmp(nodes[i].id, DAC) == 0)
+            dac_id = i;
+        if (strcmp(nodes[i].id, FFT) == 0)
+            fft_id = i;
     }
 
     // "out" node
@@ -100,7 +104,9 @@ int main(int argc, char *argv[])
         }
     }
 
-    printf("Answer: %d\n", dfs(&nodes[you_id], 0));
+    long long int ans =  calc(&nodes[svr_id], &nodes[dac_id]) * calc(&nodes[dac_id], &nodes[fft_id]) * calc(&nodes[fft_id], &nodes[n_nodes]);
+    ans += calc(&nodes[svr_id], &nodes[fft_id]) * calc(&nodes[fft_id], &nodes[dac_id]) * calc(&nodes[dac_id], &nodes[n_nodes]);
+    printf("Answer: %Ld\n", ans);
     
     for (i = 0; i < n_nodes; ++i)
     {
