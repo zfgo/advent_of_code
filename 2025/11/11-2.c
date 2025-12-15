@@ -12,22 +12,39 @@
 typedef struct node 
 {
     char id[4];
+    int hash;
     int n_nbrs;
     struct node **nbrs;
     int visited;
 } Node;
 
-long long int calc(Node *src, Node *dest)
+int hash(char *w)
+{
+    return w[0] * 26 * 26 + w[1] * 26 + w[2];
+}
+
+long long int calc(Node *src, Node *dest, Node *exclude)
 {
     //printf("src id: %s; dest id: %s\n", src->id, dest->id);
     // count number of paths from src to dest
-    if (strcmp(src->id, dest->id) == 0)
+    printf("src: %s, dest: %s\n", src->id, dest->id);
+    if (src->hash == dest->hash)
         return 1;
 
     long long int ans = 0;
-    for (int i = 0; i < src->n_nbrs; ++ i)
+    for (int i = 0; i < src->n_nbrs; ++i)
     {
-        ans += calc(src->nbrs[i], dest);
+        if (exclude == NULL)
+        {
+            ans += calc(src->nbrs[i], dest, exclude);
+            continue;
+        }
+        else 
+        {
+            if (src->nbrs[i]->hash == exclude->hash)
+                continue;
+            ans += calc(src->nbrs[i], dest, exclude);
+        }
     }
 
     return ans;
@@ -55,30 +72,42 @@ int main(int argc, char *argv[])
     n_lns = i;
     int n_nodes = i;
     int svr_id, dac_id, fft_id;
-    Node nodes[n_nodes + 1];
+    int n_hash = 'z' * 26 * 26 + 'z' * 26 + 'z';
+    printf("n hash %d\n", n_hash);
+    Node nodes[n_nodes+1];
 
     for (i = 0; i < n_nodes; ++i)
     {
-        strncpy(nodes[i].id, lines[i], 3);
+        char tmp[4];
+        strncpy(tmp, lines[i], 3);
+        tmp[3] = '\0';
+        int h = hash(tmp);
+        printf("h %d\n", h);
+        strcpy(nodes[i].id, tmp);
         nodes[i].id[3] = '\0';
+        nodes[i].hash = h;
         //printf("%s\n", nodes[i].id);
 
         nodes[i].n_nbrs = ((strlen(lines[i]) - 1) / 4) - 1;
         nodes[i].nbrs = (Node **)malloc(sizeof(Node *) * nodes[i].n_nbrs);
         nodes[i].visited = 0;
         //printf("%d\n", nodes[i].n_nbrs);
-        if (strcmp(nodes[i].id, SVR) == 0)
+        if (nodes[i].hash == hash(SVR))
             svr_id = i;
-        if (strcmp(nodes[i].id, DAC) == 0)
+        if (nodes[i].hash == hash(DAC))
             dac_id = i;
-        if (strcmp(nodes[i].id, FFT) == 0)
+        if (nodes[i].hash == hash(FFT))
             fft_id = i;
     }
 
     // "out" node
+    int out_h = hash(OUT);
+    //int aaa_h = hash("aaa");
+    //printf("aaa_h %d\n", aaa_h);
     strcpy(nodes[n_nodes].id, OUT);
     nodes[n_nodes].n_nbrs = 0;
     nodes[n_nodes].nbrs = NULL;
+    nodes[n_nodes].hash = out_h;
 
     for (i = 0; i < n_nodes; ++i)
     {
@@ -104,8 +133,8 @@ int main(int argc, char *argv[])
         }
     }
 
-    long long int ans =  calc(&nodes[svr_id], &nodes[dac_id]) * calc(&nodes[dac_id], &nodes[fft_id]) * calc(&nodes[fft_id], &nodes[n_nodes]);
-    ans += calc(&nodes[svr_id], &nodes[fft_id]) * calc(&nodes[fft_id], &nodes[dac_id]) * calc(&nodes[dac_id], &nodes[n_nodes]);
+    long long int ans =  calc(&nodes[svr_id], &nodes[dac_id], &nodes[fft_id]) * calc(&nodes[dac_id], &nodes[fft_id], NULL) * calc(&nodes[fft_id], &nodes[out_h], &nodes[dac_id]);
+    ans += calc(&nodes[svr_id], &nodes[fft_id], &nodes[dac_id]) * calc(&nodes[fft_id], &nodes[dac_id], NULL) * calc(&nodes[dac_id], &nodes[out_h], &nodes[fft_id]);
     printf("Answer: %Ld\n", ans);
     
     for (i = 0; i < n_nodes; ++i)
