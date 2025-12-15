@@ -4,6 +4,9 @@
 !/**/
 !*.*
 
+# exclude "test" files
+test.*
+
 # exclude vim swap files 
 *.swp
 
