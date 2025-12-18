@@ -64,7 +64,6 @@ int run(int *cmnds, int n)
                     params /= 10;
                 }
                 cmnds[cmnds[ip+3]] = tmp;
-                //cmnds[cmnds[ip+3]] = cmnds[cmnds[ip+1]] + cmnds[cmnds[ip+2]];
                 ip += 4;
                 break;
             case MULT:
@@ -78,7 +77,6 @@ int run(int *cmnds, int n)
                     params /= 10;
                 }
                 cmnds[cmnds[ip+3]] = tmp;
-                //cmnds[cmnds[ip+3]] = cmnds[cmnds[ip+1]] * cmnds[cmnds[ip+2]];
                 ip += 4;
                 break;
             case IN:
@@ -143,32 +141,6 @@ int main(int argc, char *argv[])
         ++i;
     }
     n = i;
-
-    /*
-    int *cmnds;
-    if ((cmnds = (int *)malloc(sizeof(int) * n)) == NULL)
-    {
-        fclose(f);
-        exit(EXIT_FAILURE);
-    }
-
-    for (noun = 0; noun < 100; ++noun)
-    {
-        for (verb = 0; verb < 100; ++verb)
-        {
-            copy_memory(cmnds, init_cmnds, n);
-            cmnds[1] = noun;
-            cmnds[2] = verb;
-            if (run(cmnds, n) == ans)
-            {
-                ans = noun * 100 + verb;
-                printf("Answer: %d\n", ans);
-                fclose(f);
-                return 0;
-            }
-        }
-    }
-    */
 
     run(init_cmnds, n);
 
