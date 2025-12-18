@@ -3,6 +3,25 @@
 #include <string.h>
 #include <assert.h>
 
+#define PRINT       0
+#define PRINTPROG   0
+#define PRINTARGS   0
+#define PRINTIP     0
+
+/*
+ * PARAMETER MODES
+ *
+ * Position Mode (0):
+ *      - the mode we have been working with so far
+ *      - <opcode>,<comma separated list of memory adresses>
+ * Immediate Mode (1):
+ *      - opcode is >100 
+ *      - 2 least significant (rightmost) digits are the opcode 
+ *      - digits going from right to left (hundreds place, thousands place, ten 
+ *        thousands place, etc.) tell us whether to use immediate mode or 
+ *        position mode 
+ */
+
 typedef enum op_code
 {
     ADD = 1,
@@ -16,94 +35,181 @@ typedef enum op_code
     HALT = 99
 } OP_CODE;
 
-void print_prog(int *cmnds, int n)
+void print_prog(int *cmds, int n)
 {
+#if PRINTPROG
     for (int i = 0; i < n-1; ++i)
-        printf("%d, ", cmnds[i]);
-    printf("%d\n", cmnds[n-1]);
+        printf("%d: %d, ", i, cmds[i]);
+    printf("%d: %d\n", n-1, cmds[n-1]);
+#endif
 }
 
-/*
- * PARAMETER MODES
- *
- * Position Mode (0):
- *      - the mode we have been working with so far
- *      - <opcode>,<comma separated list of memory adresses>
- * Immediate Mode (1):
- *      - opcode is >100 
- *      - 2 least significant (rightmost) digits are the opcode 
- *      - digits going from right to left (hundreds place, thousands place, ten 
-  *        thousands place, etc.) tell us whether to use immediate mode or 
-  *        position mode 
- */
+void print_instr(int oc, int *cmds, int n)
+{
+#if PRINT
+    switch (oc)
+    {
+        case ADD:
+            printf("ADD: ");
+            break;
+        case MULT:
+            printf("MULT: ");
+            break;
+        case IN:
+            printf("IN: ");
+            break;
+        case OUT:
+            printf("OUT: ");
+            break;
+        case JIT:
+            printf("JIT: ");
+            break;
+        case JIF:
+            printf("JIF: ");
+            break;
+        case LT:
+            printf("LT: ");
+            break;
+        case EQ:
+            printf("EQ: ");
+            break;
+        case HALT:
+            printf("HALT: ");
+            break;
+        default:
+            fprintf(stderr, "Error: print_instr default case\n");
+            break;
+    }
+    if (n == 1)
+    {
+        printf("oc: %d\n", cmds[0]);
+        return;
+    }
+    for (int i = 0; i < n-1; ++i)
+    {
+        if (i == 0)
+            printf("oc: ");
+        printf("%d, ", cmds[i]);
+    }
+    printf("%d\n", cmds[n-1]);
+#endif
+}
 
-int run(int *cmnds, int n)
+void get_args(int *cmds, int ip, int *args, int n)
+{
+    int params = cmds[ip] / 100;
+#if PRINTARGS
+    printf("args: ");
+#endif
+    for (int i = 0; i < n; ++i)
+    {
+        if (params & 1)
+            args[i] = cmds[ip+i+1];
+        else
+            args[i] = cmds[cmds[ip+i+1]];
+#if PRINTARGS
+        printf("%d, ", args[i]);
+#endif
+        params /= 10;
+    }
+#if PRINTARGS
+    printf("\n");
+#endif
+}
+
+int run(int *cmds, int n)
 {
     int ip = 0;
     while (ip < n)
     {
-        //printf("opcode : %d, ip: %d\n", cmnds[ip], ip);
-        //print_prog(cmnds, n);
-        int oc = cmnds[ip] % 100;       // opcode (rightmost 2 digits)
-        //printf("opcode: %d\n", oc);
-        int params = cmnds[ip] / 100;   // associated parameters
-        int bufsiz = 512;
-        char buf[bufsiz];
-        int tmp = 0;
+#if PRINTIP
+        printf("ip: %d\n", ip);
+#endif
+        print_prog(cmds, n);
+        int oc = cmds[ip] % 100;       // opcode (rightmost 2 digits)
+        int bufsiz = 512;   // needed for "OUT"
+        char buf[bufsiz];   // needed for "OUT"
+        int n_args = 8;
+        int *args = (int *)malloc(sizeof(int) * n_args);
 
         switch (oc)
         {
-            case ADD:
-                tmp = 0;
-                for (int i = 0; i < 2; ++i)
-                {
-                    if (params & 1)
-                        tmp += cmnds[ip+i+1];
-                    else 
-                        tmp += cmnds[cmnds[ip+i+1]];
-                    params /= 10;
-                }
-                cmnds[cmnds[ip+3]] = tmp;
-                //cmnds[cmnds[ip+3]] = cmnds[cmnds[ip+1]] + cmnds[cmnds[ip+2]];
+            case ADD:   // 4 params: oc, in1, in2, out
+                print_instr(oc, &cmds[ip], 4);
+                get_args(cmds, ip, args, 2);
+                cmds[cmds[ip+3]] = args[0] + args[1];
                 ip += 4;
                 break;
-            case MULT:
-                tmp = 1;
-                for (int i = 0; i < 2; ++i)
-                {
-                    if (params & 1)
-                        tmp *= cmnds[ip+i+1];
-                    else 
-                        tmp *= cmnds[cmnds[ip+i+1]];
-                    params /= 10;
-                }
-                cmnds[cmnds[ip+3]] = tmp;
-                //cmnds[cmnds[ip+3]] = cmnds[cmnds[ip+1]] * cmnds[cmnds[ip+2]];
+            case MULT:  // 4 params: oc, in1, in2, out
+                print_instr(oc, &cmds[ip], 4);
+                get_args(cmds, ip, args, 2);
+                cmds[cmds[ip+3]] = args[0] * args[1];
                 ip += 4;
                 break;
-            case IN:
+            case IN:    // 2 params: oc, out
+                print_instr(oc, &cmds[ip], 2);
                 if (fgets(buf, bufsiz, stdin) != NULL)
                 {
-                    sscanf(buf, "%d\n", &tmp);
+                    sscanf(buf, "%d\n", &args[0]);
                 }
-                cmnds[cmnds[ip+1]] = tmp;
+                cmds[cmds[ip+1]] = args[0];
                 ip += 2;
                 break;
-            case OUT:
-                if (params & 1)
-                    printf("OUT: %d\n", cmnds[ip+1]);
-                else 
-                    printf("OUT: %d\n", cmnds[cmnds[ip+1]]);
+            case OUT:   // 2 params: oc, in
+                print_instr(oc, &cmds[ip], 2);
+                get_args(cmds, ip, args, 1);
+                printf("> OUT: %d\n", args[0]);
                 ip += 2;
+                break;
+            case JIT:   // 4 params: oc, in1, in2, out
+                print_instr(oc, &cmds[ip], 3);
+                get_args(cmds, ip, args, 2);
+                if (args[0])
+                {
+                    ip = args[1];
+                    break;
+                }
+                ip += 3;
+                break;
+            case JIF:
+                print_instr(oc, &cmds[ip], 3);
+                get_args(cmds, ip, args, 2);
+                if (args[0] == 0)
+                {
+                    ip = args[1];
+                    break;
+                }
+                ip += 3;
+                break;
+            case LT:
+                print_instr(oc, &cmds[ip], 4);
+                get_args(cmds, ip, args, 3);
+                if (args[0] < args[1])
+                    cmds[cmds[ip+3]] = 1;
+                else 
+                    cmds[cmds[ip+3]] = 0;
+                ip += 4;
+                break;
+            case EQ:
+                print_instr(oc, &cmds[ip], 4);
+                get_args(cmds, ip, args, 3);
+                if (args[0] == args[1])
+                    cmds[cmds[ip+3]] = 1;
+                else 
+                    cmds[cmds[ip+3]] = 0;
+                ip += 4;
                 break;
             case HALT:
-                return cmnds[0];
+                print_instr(oc, &cmds[ip], 1);
+                free(args);
+                return cmds[0];
             default:
-                fprintf(stderr, "Error: Reached default case\n");
-                break;
+                fprintf(stderr, "Error: Reached default case, returning cmds[0]\n");
+                return cmds[0];
         }
     }
-    return cmnds[0];
+    fprintf(stderr, "Error: Instruction pointer > n\n");
+    return cmds[0];
 }
 
 void copy_memory(int *dest, int *src, int n)
@@ -131,46 +237,20 @@ int main(int argc, char *argv[])
 
     int n = 1024;
     int i = 0;
-    int init_cmnds[n];
+    int init_cmds[n];
     char delim[] = ",";
     char *tok;
 
     tok = strtok(buf, delim);
     while (tok != NULL)
     {
-        init_cmnds[i] = atoi(tok);
+        init_cmds[i] = atoi(tok);
         tok = strtok(NULL, delim);
         ++i;
     }
     n = i;
 
-    /*
-    int *cmnds;
-    if ((cmnds = (int *)malloc(sizeof(int) * n)) == NULL)
-    {
-        fclose(f);
-        exit(EXIT_FAILURE);
-    }
-
-    for (noun = 0; noun < 100; ++noun)
-    {
-        for (verb = 0; verb < 100; ++verb)
-        {
-            copy_memory(cmnds, init_cmnds, n);
-            cmnds[1] = noun;
-            cmnds[2] = verb;
-            if (run(cmnds, n) == ans)
-            {
-                ans = noun * 100 + verb;
-                printf("Answer: %d\n", ans);
-                fclose(f);
-                return 0;
-            }
-        }
-    }
-    */
-
-    run(init_cmnds, n);
+    run(init_cmds, n);
 
     fclose(f);
     return 0;
